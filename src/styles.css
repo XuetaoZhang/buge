@@ -1,0 +1,92 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;600;700&display=swap");
+
+:root { color: #f1f4f3; background: #111415; font-family: "Noto Sans SC", sans-serif; font-synthesis: none; }
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; background: #111415; }
+button { font: inherit; cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: .52; }
+.topbar { height: 68px; display: flex; align-items: center; gap: 13px; padding: 0 max(24px, calc((100vw - 1100px) / 2)); border-bottom: 1px solid #2b3131; }
+.brand { color: #f4f7f5; text-decoration: none; font-size: 21px; font-weight: 700; letter-spacing: 0; margin-right: auto; }
+.brand span { display: inline-grid; place-items: center; width: 25px; height: 25px; background: #71e38b; color: #111415; margin-right: 3px; }
+.network { display: inline-flex; align-items: center; gap: 6px; color: #a8b2af; font: 12px "DM Mono", monospace; padding: 7px 9px; border: 1px solid #343c3a; }
+.network svg, .eyebrow, .panel-label { color: #71e38b; }
+.wallet-button, .setup-button, .deposit-button, .finalize-button { min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; font-size: 13px; font-weight: 700; }
+.wallet-button, .deposit-button { border: 1px solid #71e38b; color: #111415; background: #71e38b; padding: 0 12px; }
+.setup-button { border: 1px solid #46514e; color: #c4cdca; background: transparent; padding: 0 10px; }
+.eyebrow, .panel-label { font: 12px "DM Mono", monospace; letter-spacing: 0; margin: 0 0 12px; text-transform: uppercase; }
+.notice { margin-top: 20px; border-left: 2px solid #71e38b; color: #ccd4d1; padding: 10px 12px; background: #19211e; font-size: 13px; }
+.spin { animation: spin .9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.registration-shell { max-width: 1100px; margin: 0 auto; padding: 88px 24px 40px; }
+.registration-intro { max-width: 720px; margin-bottom: 54px; }
+.registration-intro h1, .tap-shell h1, .event-header h1 { font-size: 58px; letter-spacing: 0; line-height: 1.1; margin: 0; }
+.registration-intro > p:last-child { color: #a8b2af; font-size: 18px; max-width: 620px; line-height: 1.75; margin: 19px 0 0; }
+.deposit-layout { display: grid; grid-template-columns: 1.05fr .95fr; gap: 20px; align-items: stretch; }
+.deposit-card, .arrival-explainer, .admin-panel, .roster-panel, .settlement { border: 1px solid #343c3a; background: #171b1c; }
+.deposit-card { padding: 30px; }
+.deposit-card h2, .admin-panel h2, .settlement h2 { font-size: 28px; margin: 0 0 22px; letter-spacing: 0; }
+.deposit-details { margin: 0 0 26px; border-top: 1px solid #343c3a; }
+.deposit-details div { min-height: 52px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #343c3a; gap: 20px; }
+.deposit-details dt { color: #94a09c; font-size: 13px; }
+.deposit-details dd { margin: 0; text-align: right; font: 13px "DM Mono", monospace; color: #e5ece8; }
+.deposit-button { width: 100%; min-height: 58px; font-size: 16px; }
+.claim-button { width: 100%; min-height: 45px; margin-top: 12px; border: 1px solid #71e38b; background: transparent; color: #71e38b; font-size: 13px; font-weight: 700; }
+.deposit-note { color: #8e9895; font-size: 12px; line-height: 1.7; margin: 15px 0 0; }
+.arrival-explainer { padding: 30px; }
+.arrival-explainer ol { list-style: none; margin: 0; padding: 0; border-top: 1px solid #343c3a; }
+.arrival-explainer li { display: flex; align-items: center; gap: 16px; min-height: 79px; border-bottom: 1px solid #343c3a; }
+.arrival-explainer li > span { color: #71e38b; font: 13px "DM Mono", monospace; }
+.arrival-explainer b, .arrival-explainer small { display: block; }
+.arrival-explainer b { font-size: 15px; margin-bottom: 5px; }
+.arrival-explainer small { color: #8e9895; font-size: 12px; }
+.preview-caption { color: #7f8986; font-size: 12px; margin: 17px 0 0; }
+
+.tap-page { min-height: 100vh; }
+.tap-shell { width: min(580px, calc(100% - 32px)); margin: 0 auto; padding: 108px 0 40px; text-align: center; }
+.tap-mark { width: 88px; height: 88px; display: grid; place-items: center; margin: 0 auto 34px; color: #a8b2af; border: 1px solid #45504c; }
+.tap-mark.success { color: #71e38b; border-color: #71e38b; background: #18231d; }
+.tap-mark.failed { color: #e5b66d; border-color: #87683a; }
+.tap-shell > .eyebrow { margin-bottom: 16px; }
+.tap-copy { color: #a8b2af; font-size: 16px; line-height: 1.8; margin: 20px auto 32px; max-width: 490px; }
+.tap-status { display: flex; text-align: left; gap: 12px; align-items: center; padding: 17px; border: 1px solid #343c3a; }
+.tap-status > span { width: 31px; height: 31px; display: grid; place-items: center; color: #a8b2af; border: 1px solid #53605c; }
+.tap-status > span.done { color: #111415; background: #71e38b; border-color: #71e38b; }
+.tap-status b, .tap-status small { display: block; }
+.tap-status b { font-size: 14px; }
+.tap-status small { color: #8e9895; font-size: 12px; margin-top: 3px; }
+.tap-finish { color: #71e38b; font-size: 14px; margin-top: 24px; }
+
+.shell { max-width: 1100px; margin: 0 auto; padding: 54px 24px 24px; }
+.event-header { display: flex; justify-content: space-between; align-items: end; margin-bottom: 38px; }
+.subtitle { color: #a8b2af; margin: 12px 0 0; font-size: 16px; }
+.deadline { width: 126px; border-left: 1px solid #4a5551; padding-left: 16px; display: grid; grid-template-columns: 21px auto; align-items: center; color: #71e38b; font-family: "DM Mono", monospace; }
+.deadline span { font-size: 27px; }
+.deadline small { grid-column: 1 / -1; color: #9aa4a1; margin-top: 5px; }
+.metrics { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid #343c3a; border-left: 1px solid #343c3a; margin-bottom: 20px; }
+.metric { min-height: 100px; padding: 18px; border-right: 1px solid #343c3a; border-bottom: 1px solid #343c3a; display: grid; align-content: center; gap: 7px; }
+.metric strong { font: 21px "DM Mono", monospace; font-weight: 500; }
+.metric span { color: #9aa4a1; font-size: 13px; }
+.metric.accent strong { color: #71e38b; }
+.admin-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 20px; }
+.admin-panel, .roster-panel { padding: 28px; }
+.admin-panel { min-height: 312px; }
+.admin-panel p, .settlement p { max-width: 430px; color: #a8b2af; margin: 0; line-height: 1.75; font-size: 14px; }
+.tap-flow { display: grid; grid-template-columns: 1fr 16px 1fr 16px 1fr; gap: 6px; align-items: center; margin-top: 29px; padding: 12px 0; border-top: 1px solid #38433f; border-bottom: 1px solid #38433f; color: #94a09c; font-size: 11px; line-height: 1.6; }
+.tap-flow span { min-width: 0; }
+.tap-flow b { color: #e0e8e4; font-weight: 600; white-space: nowrap; }
+.tap-flow i { color: #71e38b; font: 16px "DM Mono", monospace; font-style: normal; text-align: center; }
+.roster { border-top: 1px solid #343c3a; }
+.person { min-height: 44px; border-bottom: 1px solid #343c3a; display: flex; align-items: center; gap: 10px; font-size: 14px; }
+.person small { margin-left: auto; color: #7e8986; font-size: 12px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; border: 1px solid #65716d; }
+.dot.present { border-color: #71e38b; background: #71e38b; box-shadow: 0 0 0 4px rgba(113, 227, 139, .1); }
+.settlement { margin-top: 20px; min-height: 146px; padding: 27px 28px; display: flex; align-items: center; justify-content: space-between; gap: 30px; }
+.settlement h2 { font-size: 21px; }
+.finalize-button { border: 1px solid #71e38b; background: transparent; color: #71e38b; padding: 0 15px; flex-shrink: 0; }
+footer { color: #7f8986; display: flex; gap: 20px; justify-content: space-between; padding: 24px 0 0; font-size: 12px; }
+footer a { color: #a8b2af; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
+
+@media (max-width: 700px) {
+  .topbar { padding: 0 16px; } .network { display: none; } .registration-shell { padding: 57px 16px 28px; } .registration-intro h1, .tap-shell h1, .event-header h1 { font-size: 43px; } .registration-intro > p:last-child { font-size: 16px; } .deposit-layout, .admin-grid { grid-template-columns: 1fr; } .tap-shell { padding-top: 75px; } .shell { padding: 34px 16px 20px; } .event-header { align-items: start; } .metrics { grid-template-columns: 1fr 1fr; } .settlement { align-items: start; flex-direction: column; gap: 18px; } .finalize-button { width: 100%; } .tap-flow { font-size: 10px; gap: 3px; grid-template-columns: 1fr 12px 1fr 12px 1fr; } .tap-flow b { white-space: normal; }
+}
