@@ -31,6 +31,7 @@ import {
 import "./styles.css";
 
 const demoAttendees = ["林一", "陈默", "吴青", "周临", "赵禾"];
+const DEMO_STAKE = "1";
 
 function App() {
   const query = new URLSearchParams(window.location.search);
@@ -148,7 +149,7 @@ function App() {
       } catch {
         // Local Vite preview has no serverless relayer. The connected wallet is only a development fallback.
       }
-      const transaction = await contract.createEvent(attestor, parseEther("0.01"), start + 180, start + 420, start + 7200);
+      const transaction = await contract.createEvent(attestor, parseEther(DEMO_STAKE), start + 180, start + 420, start + 7200);
       setNotice("正在创建今晚活动...");
       await transaction.wait();
       setActiveEventId(1);
@@ -174,7 +175,7 @@ function App() {
         payout: event.payout
       };
     }
-    return { registered: 5, present: demoPresent.length, noShow: 5 - demoPresent.length, stake: "0.01", seconds: 42, finalized: false, payout: "0.0166" };
+    return { registered: 5, present: demoPresent.length, noShow: 5 - demoPresent.length, stake: DEMO_STAKE, seconds: 42, finalized: false, payout: "1.6666" };
   }, [demoPresent, event, live, now]);
 
   const register = async () => {
