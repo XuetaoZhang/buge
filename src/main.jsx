@@ -168,8 +168,10 @@ function App() {
 
   const connectAndCheckIn = async () => {
     if (!window.ethereum) {
-      const dappPath = `${window.location.host}${window.location.pathname}${window.location.search}`;
-      window.location.href = `https://metamask.app.link/dapp/${dappPath}`;
+      const tapUrl = new URL(window.location.href);
+      tapUrl.pathname = "/tap";
+      tapUrl.hash = "";
+      window.location.href = `https://link.metamask.io/dapp/${encodeURIComponent(tapUrl.href)}`;
       return;
     }
     setBusy(true);
