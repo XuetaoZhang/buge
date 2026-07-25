@@ -171,7 +171,8 @@ function App() {
       const tapUrl = new URL(window.location.href);
       tapUrl.pathname = "/tap";
       tapUrl.hash = "";
-      window.location.href = `https://link.metamask.io/dapp/${encodeURIComponent(tapUrl.href)}`;
+      const dappPath = `${tapUrl.host}${tapUrl.pathname}${tapUrl.search}`;
+      window.location.href = `https://link.metamask.io/dapp/${dappPath}`;
       return;
     }
     setBusy(true);
