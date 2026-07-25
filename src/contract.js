@@ -12,6 +12,7 @@ export const contractAddress = import.meta.env.VITE_BUGE_CONTRACT_ADDRESS || "";
 export const eventId = Number(import.meta.env.VITE_BUGE_EVENT_ID || 1);
 
 export const abi = [
+  "function nextEventId() view returns (uint256)",
   "function createEvent(address attestor,uint96 stake,uint40 registrationDeadline,uint40 checkInDeadline,uint40 claimDeadline) returns (uint256 eventId)",
   "function register(uint256 eventId) payable",
   "function checkInSelf(uint256 eventId)",

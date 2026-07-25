@@ -18,7 +18,7 @@ if (!rpcUrl || !privateKey) {
 
 const artifact = JSON.parse(fs.readFileSync("artifacts/BuGe.json", "utf8"));
 const provider = new JsonRpcProvider(rpcUrl);
-const wallet = new Wallet(privateKey, provider);
+const wallet = new Wallet(privateKey.startsWith("0x") ? privateKey : `0x${privateKey}`, provider);
 const factory = new ContractFactory(artifact.abi, artifact.bytecode, wallet);
 const [network, balance, deployment] = await Promise.all([
   provider.getNetwork(),

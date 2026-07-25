@@ -32,6 +32,7 @@ import "./styles.css";
 
 const demoAttendees = ["林一", "陈默", "吴青", "周临", "赵禾"];
 const DEMO_STAKE = "1";
+const ATTENDANCE_GAS_LIMIT = 90_000n;
 
 function App() {
   const query = new URLSearchParams(window.location.search);
@@ -49,7 +50,8 @@ function App() {
   const [notice, setNotice] = useState("");
   const [now, setNow] = useState(Date.now());
   const [tapAttempted, setTapAttempted] = useState(false);
-  const [tapState, setTapState] = useState("checking");
+  const [tapState, setTapState] = useState("ready");
+  const [tapToken, setTapToken] = useState(query.get("token") || "");
   const live = Boolean(activeAddress && event);
 
   useEffect(() => {
@@ -96,7 +98,7 @@ function App() {
       setAccount(wallet.address);
       setProvider(wallet.provider);
       const contract = getContract(wallet.signer, activeAddress);
-      const transaction = await action(contract);
+      const transaction = await action(contract, wallet);
       setNotice(`交易已发送：${shortAddress(transaction.hash)}，等待 Monad 最终确认。`);
       await transaction.wait();
       await refresh(wallet.provider, wallet.address);
@@ -149,15 +151,70 @@ function App() {
       } catch {
         // Local Vite preview has no serverless relayer. The connected wallet is only a development fallback.
       }
-      const transaction = await contract.createEvent(attestor, parseEther(DEMO_STAKE), start + 180, start + 420, start + 7200);
+      const nextId = await contract.nextEventId();
+      const transaction = await contract.createEvent(attestor, parseEther(DEMO_STAKE), start + 1800, start + 2700, start + 86400);
       setNotice("正在创建今晚活动...");
       await transaction.wait();
-      setActiveEventId(1);
-      preserveDeploymentLink(activeAddress, 1);
+      setActiveEventId(Number(nextId));
+      preserveDeploymentLink(activeAddress, Number(nextId));
       await refresh(wallet.provider, wallet.address);
-      setNotice(`活动已创建，签到 relayer：${shortAddress(attestor)}。将 /tap?token=现场令牌 写入 NFC。`);
+      setNotice(`活动已创建，签到 relayer：${shortAddress(attestor)}。在 Vercel 配置 TAP_CODES 后，将 /tap?code=短码 写入 NFC。`);
     } catch (error) {
       setNotice(error.shortMessage || error.reason || error.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const connectAndCheckIn = async () => {
+    if (!window.ethereum) {
+      const dappPath = `${window.location.host}${window.location.pathname}${window.location.search}`;
+      window.location.href = `https://metamask.app.link/dapp/${dappPath}`;
+      return;
+    }
+    setBusy(true);
+    setTapState("checking");
+    try {
+      const wallet = await connectMonadWallet();
+      setAccount(wallet.address);
+      setProvider(wallet.provider);
+      if (!activeAddress) throw new Error("尚未配置不鸽合约地址。");
+      const contract = getContract(wallet.signer, activeAddress);
+      const request = await contract.checkInSelf.populateTransaction(activeEventId);
+      const transaction = await sendWithTightGas(wallet, request);
+      setNotice(`签到交易已发送：${shortAddress(transaction.hash)}，等待 Monad 最终确认。`);
+      await transaction.wait();
+      await refresh(wallet.provider, wallet.address);
+      setTapState("success");
+      setNotice("已到场，Monad 已最终确认。");
+    } catch (error) {
+      setTapState("failed");
+      setNotice(error.shortMessage || error.message || "钱包签到失败");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const selfCheckIn = async () => {
+    if (!activeAddress) {
+      setNotice("请先解析签到码或提供合约地址。");
+      return;
+    }
+    setBusy(true);
+    try {
+      const wallet = await connectMonadWallet();
+      setAccount(wallet.address);
+      setProvider(wallet.provider);
+      const contract = getContract(wallet.signer, activeAddress);
+      const tx = await contract.checkInSelf(activeEventId);
+      setNotice(`自行签到已发送：${shortAddress(tx.hash)}，等待 Monad 最终确认。`);
+      await tx.wait();
+      await refresh(wallet.provider, wallet.address);
+      setTapState("success");
+      setNotice("已到场，Monad 已最终确认。");
+    } catch (error) {
+      setTapState("failed");
+      setNotice(error.shortMessage || error.reason || error.message || "自行签到失败");
     } finally {
       setBusy(false);
     }
@@ -179,10 +236,14 @@ function App() {
   }, [demoPresent, event, live, now]);
 
   const register = async () => {
-    if (live) return write((contract) => contract.register(activeEventId, { value: parseEther(event.stake) }));
+    // A temporary RPC read failure must not prevent a wallet from submitting
+    // the registration transaction. The contract remains the source of truth.
     if (activeAddress) {
-      setNotice("请先连接钱包，读取这场活动的链上状态。");
-      return;
+      const stake = event?.stake || DEMO_STAKE;
+      return write(async (contract, wallet) => {
+        const request = await contract.register.populateTransaction(activeEventId, { value: parseEther(stake) });
+        return sendWithTightGas(wallet, request);
+      });
     }
     setBusy(true);
     setNotice("正在锁定保证金...");
@@ -193,8 +254,13 @@ function App() {
     }, 800);
   };
 
+  const sendWithTightGas = async (wallet, request) => {
+    // Monad charges the submitted gas limit. 90k is a tight fixed cap for the
+    // two single-attendee writes in this MVP and avoids wallet RPC estimate failures.
+    return wallet.signer.sendTransaction({ ...request, gasLimit: ATTENDANCE_GAS_LIMIT });
+  };
+
   const submitNfcTap = async (wallet) => {
-    const tapToken = query.get("token");
     if (!tapToken) throw new Error("此 NFC 标签缺少现场令牌。");
     const response = await fetch("/api/checkin", {
       method: "POST",
@@ -208,36 +274,40 @@ function App() {
     setNotice(result.alreadyCheckedIn ? "你已确认到场。" : "已到场，Monad 已最终确认。");
   };
 
+  // Resolve short tap code (e.g. ?code=abc) into full config.
+  useEffect(() => {
+    const code = query.get("code");
+    if (page !== "tap" || !code || tapToken) return;
+    let cancelled = false;
+    (async () => {
+      setTapState("checking");
+      try {
+        const res = await fetch(`/api/tap-config?code=${encodeURIComponent(code)}`);
+        if (!res.ok) throw new Error((await res.json()).error || "无法解析签到码");
+        const cfg = await res.json();
+        if (cancelled) return;
+        setActiveAddress(cfg.contract);
+        setActiveEventId(cfg.eventId);
+        setTapToken(cfg.token);
+      } catch (err) {
+        if (cancelled) return;
+        setTapState("failed");
+        setNotice(err.message || "签到码无效");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [page, tapToken]);
+
   useEffect(() => {
     if (page !== "tap" || tapAttempted) return;
+    // Wait for short-code resolution if a code param is present.
+    if (query.get("code") && !tapToken) return;
     setTapAttempted(true);
-    const checkInFromNfc = async () => {
-      setBusy(true);
-      try {
-        if (!activeAddress) {
-          await new Promise((resolve) => window.setTimeout(resolve, 820));
-          setDemoPresent((current) => current.includes("吴青") ? current : [...current, "吴青"]);
-          setTapState("success");
-          setNotice("本地预览：已模拟 Monad 到场确认。");
-          return;
-        }
-        const wallet = await recoverMonadWallet();
-        if (!wallet) throw new Error("未找到已授权的报名钱包。请使用报名时的同一浏览器打开 NFC 标签。");
-        setAccount(wallet.address);
-        setProvider(wallet.provider);
-        await submitNfcTap(wallet);
-      } catch (error) {
-        setTapState("failed");
-        setNotice(error.shortMessage || error.message || "无法确认到场");
-      } finally {
-        setBusy(false);
-      }
-    };
-    checkInFromNfc();
+    setTapState("ready");
   }, [activeAddress, page, tapAttempted]);
 
   const shared = { account, activeAddress, activeEventId, busy, connect, event, live, notice, participant, register, status, write };
-  if (page === "tap") return <TapPage tapState={tapState} notice={notice} />;
+  if (page === "tap") return <TapPage tapState={tapState} notice={notice} busy={busy} connectAndCheckIn={connectAndCheckIn} selfCheckIn={selfCheckIn} />;
   if (page === "admin") return <AdminPage {...shared} createTonightEvent={createTonightEvent} deploy={deploy} />;
   return <RegistrationPage {...shared} demoRegistered={demoRegistered} />;
 }
@@ -247,7 +317,7 @@ function Topbar({ account, busy, connect, admin = false, activeAddress, event, d
     <a className="brand" href="/" aria-label="不鸽首页"><span>不</span>鸽</a>
     <div className="network"><Radio size={14} /> {monad.name}</div>
     {admin && !activeAddress && <button className="setup-button" onClick={deploy} disabled={busy}><Landmark size={15} /> 部署合约</button>}
-    {admin && activeAddress && !event && <button className="setup-button" onClick={createTonightEvent} disabled={busy}><ChevronRight size={15} /> 创建活动</button>}
+    {admin && activeAddress && <button className="setup-button" onClick={createTonightEvent} disabled={busy}><ChevronRight size={15} /> 创建新活动</button>}
     {connect && <button className="wallet-button" onClick={connect} disabled={busy}><WalletCards size={16} /> {account ? shortAddress(account) : "连接钱包"}</button>}
   </nav>;
 }
@@ -282,7 +352,7 @@ function RegistrationPage({ account, activeAddress, activeEventId, busy, connect
           <div className="panel-label"><Fingerprint size={16} /> 到场方式</div>
           <ol>
             <li><span>01</span><div><b>报名锁金</b><small>你的钱包与本次活动绑定</small></div></li>
-            <li><span>02</span><div><b>现场碰触 NFC</b><small>不扫二维码，不再签一次钱包</small></div></li>
+            <li><span>02</span><div><b>现场碰触 NFC</b><small>点击一次打开 MetaMask 确认</small></div></li>
             <li><span>03</span><div><b>Monad 最终确认</b><small>到场资格和结算份额同时锁定</small></div></li>
           </ol>
         </aside>
@@ -293,18 +363,37 @@ function RegistrationPage({ account, activeAddress, activeEventId, busy, connect
   </main>;
 }
 
-function TapPage({ tapState, notice }) {
+function TapPage({ tapState, notice, busy, connectAndCheckIn, selfCheckIn }) {
   const success = tapState === "success";
   const failed = tapState === "failed";
+  const checking = tapState === "checking";
+  const ready = tapState === "ready";
   return <main className="tap-page">
     <nav className="topbar"><a className="brand" href="/" aria-label="不鸽首页"><span>不</span>鸽</a><div className="network"><Radio size={14} /> Monad</div></nav>
     <section className="tap-shell">
       <div className={`tap-mark ${success ? "success" : failed ? "failed" : ""}`}>{success ? <BadgeCheck size={48} /> : failed ? <ShieldCheck size={48} /> : <LoaderCircle className="spin" size={48} />}</div>
       <p className="eyebrow">NFC 现场标签已识别</p>
-      <h1>{success ? "已确认到场" : failed ? "暂未完成确认" : "正在确认到场"}</h1>
-      <p className="tap-copy">{success ? "你的到场资格已经写入 Monad。签到窗口关闭后，你可领取保证金返还与爽约池份额。" : failed ? notice : "无需工作人员操作，活动 relayer 正在代付 gas 并写入 Monad。"}</p>
-      <div className="tap-status"><span className={success ? "done" : ""}>{success ? <Check size={16} /> : <LoaderCircle className="spin" size={16} />}</span><div><b>{success ? "Monad 已最终确认" : "等待 Monad 最终确认"}</b><small>{success ? "到场资格已锁定" : "通常约 0.8 秒"}</small></div></div>
+      <h1>{success ? "已确认到场" : failed ? "暂未完成确认" : checking ? "正在确认到场" : "碰触已完成"}</h1>
+      {ready && <p className="tap-copy">点击下方按钮打开 MetaMask，确认这次到场。现场无需工作人员操作。</p>}
+      {checking && <p className="tap-copy">MetaMask 正在把你的到场确认写入 Monad。</p>}
+      {success && <p className="tap-copy">你的到场资格已经写入 Monad。签到窗口关闭后，你可领取保证金返还与爽约池份额。</p>}
+      {failed && <p className="tap-copy">{notice || "自动签到未能完成。你可以手动连接钱包完成签到。"}</p>}
+      {checking && (
+        <div className="tap-status"><span><LoaderCircle className="spin" size={16} /></span><div><b>等待 Monad 最终确认</b><small>通常约 0.8 秒</small></div></div>
+      )}
+      {success && (
+        <div className="tap-status"><span className="done"><Check size={16} /></span><div><b>Monad 已最终确认</b><small>到场资格已锁定</small></div></div>
+      )}
       {success && <p className="tap-finish">现在可以直接进入会场。</p>}
+      {(failed || ready) && (
+        <div className="tap-actions">
+          <button className="deposit-button" onClick={connectAndCheckIn} disabled={busy}>
+            {busy ? <LoaderCircle className="spin" size={18} /> : <WalletCards size={18} />}
+            打开 MetaMask 并签到
+          </button>
+          <p className="deposit-note" style={{textAlign:"center"}}>确认一笔低费 Monad 交易后，页面显示最终到场状态。</p>
+        </div>
+      )}
     </section>
   </main>;
 }

@@ -12,7 +12,8 @@ export default async function handler(request, response) {
 
   try {
     const provider = new JsonRpcProvider(process.env.MONAD_RPC_URL);
-    const attestor = new Wallet(process.env.ATTESTOR_PRIVATE_KEY, provider);
+    const rawKey = process.env.ATTESTOR_PRIVATE_KEY;
+    const attestor = new Wallet(rawKey.startsWith("0x") ? rawKey : `0x${rawKey}`, provider);
     const contract = new Contract(process.env.BUGE_CONTRACT_ADDRESS, artifact.abi, attestor);
     const participant = await contract.participantDetails(eventId, attendee);
     if (!participant.registered) return response.status(400).json({ error: "This wallet is not registered" });
